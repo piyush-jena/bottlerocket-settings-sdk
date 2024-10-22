@@ -1451,6 +1451,330 @@ mod test_hostname_override_source {
 
 // =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGA100Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidA100Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.5gb")]
+    Profile1g5gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.10gb")]
+    Profile2g10gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.20gb")]
+    Profile3g20gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.40gb")]
+    Profile7g40gb,
+}
+
+impl TryFrom<&str> for MIGA100Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidA100Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGA100Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+impl Default for MIGA100Profile {
+    fn default() -> Self {
+        MIGA100Profile {
+            inner: "7g.40gb".to_string(),
+        }
+    }
+}
+
+impl MIGA100Profile {
+    pub fn get_profile(&self) -> String {
+        use std::collections::HashMap;
+
+        let instance_counts = HashMap::from([
+            (ValidA100Policy::Profile1g5gb, 7),
+            (ValidA100Policy::Profile2g10gb, 3),
+            (ValidA100Policy::Profile3g20gb, 2),
+            (ValidA100Policy::Profile7g40gb, 1),
+        ]);
+
+        let policy: ValidA100Policy =
+            serde_plain::from_str::<ValidA100Policy>(self.inner.as_str()).unwrap();
+
+        let count = instance_counts.get(&policy).unwrap();
+
+        std::iter::repeat(self.inner.clone())
+            .take(*count)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
+string_impls_for!(MIGA100Profile, "MIGA100Profile");
+
+#[cfg(test)]
+mod test_valid_a100_profile {
+    use super::MIGA100Profile;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_a100_profile() {
+        for ok in &[
+            "1g.5gb", "2g.10gb", "3g.20gb", "7g.40gb", "1", "2", "3", "7",
+        ] {
+            assert!(MIGA100Profile::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_a100_profile() {
+        assert!(MIGA100Profile::try_from("invalid").is_err());
+        assert!(MIGA100Profile::try_from("1000").is_err());
+        assert!(MIGA100Profile::try_from("1g.7gb").is_err());
+    }
+
+    #[test]
+    fn print_a100_profile() {
+        assert!(
+            MIGA100Profile::try_from("1g.5gb").unwrap().get_profile()
+                == "1g.5gb,1g.5gb,1g.5gb,1g.5gb,1g.5gb,1g.5gb,1g.5gb"
+        );
+        assert!(
+            MIGA100Profile::try_from("2g.10gb").unwrap().get_profile() == "2g.10gb,2g.10gb,2g.10gb"
+        );
+        assert!(MIGA100Profile::try_from("3g.20gb").unwrap().get_profile() == "3g.20gb,3g.20gb");
+        assert!(MIGA100Profile::try_from("7g.40gb").unwrap().get_profile() == "7g.40gb");
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGH100Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidH100Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.10gb")]
+    Profile1g10gb,
+    #[serde(alias = "4")]
+    #[serde(alias = "1g.20gb")]
+    Profile1g20gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.20gb")]
+    Profile2g20gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.40gb")]
+    Profile3g40gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.80gb")]
+    Profile7g80gb,
+}
+
+impl TryFrom<&str> for MIGH100Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidH100Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGH100Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+impl Default for MIGH100Profile {
+    fn default() -> Self {
+        MIGH100Profile {
+            inner: "7g.80gb".to_string(),
+        }
+    }
+}
+
+impl MIGH100Profile {
+    pub fn get_profile(&self) -> String {
+        use std::collections::HashMap;
+
+        let instance_counts = HashMap::from([
+            (ValidH100Policy::Profile1g10gb, 7),
+            (ValidH100Policy::Profile1g20gb, 4),
+            (ValidH100Policy::Profile2g20gb, 3),
+            (ValidH100Policy::Profile3g40gb, 2),
+            (ValidH100Policy::Profile7g80gb, 1),
+        ]);
+
+        let policy: ValidH100Policy =
+            serde_plain::from_str::<ValidH100Policy>(self.inner.as_str()).unwrap();
+
+        let count = instance_counts.get(&policy).unwrap();
+
+        std::iter::repeat(self.inner.clone())
+            .take(*count)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
+string_impls_for!(MIGH100Profile, "MIGH100Profile");
+
+#[cfg(test)]
+mod test_valid_h100_profile {
+    use super::MIGH100Profile;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_h100_profile() {
+        for ok in &[
+            "1g.10gb", "1g.20gb", "2g.20gb", "3g.40gb", "7g.80gb", "1", "2", "3", "4", "7",
+        ] {
+            assert!(MIGH100Profile::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_h100_profile() {
+        assert!(MIGH100Profile::try_from("invalid").is_err());
+        assert!(MIGH100Profile::try_from("1000").is_err());
+        assert!(MIGH100Profile::try_from("1g.7gb").is_err());
+    }
+
+    #[test]
+    fn print_h100_profile() {
+        assert!(
+            MIGH100Profile::try_from("1g.10gb").unwrap().get_profile()
+                == "1g.10gb,1g.10gb,1g.10gb,1g.10gb,1g.10gb,1g.10gb,1g.10gb"
+        );
+        assert!(
+            MIGH100Profile::try_from("1g.20gb").unwrap().get_profile()
+                == "1g.20gb,1g.20gb,1g.20gb,1g.20gb"
+        );
+        assert!(
+            MIGH100Profile::try_from("2g.20gb").unwrap().get_profile() == "2g.20gb,2g.20gb,2g.20gb"
+        );
+        assert!(MIGH100Profile::try_from("3g.40gb").unwrap().get_profile() == "3g.40gb,3g.40gb");
+        assert!(MIGH100Profile::try_from("7g.80gb").unwrap().get_profile() == "7g.80gb");
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGH200Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidH200Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.18gb")]
+    Profile1g18gb,
+    #[serde(alias = "4")]
+    #[serde(alias = "1g.35gb")]
+    Profile1g35gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.35gb")]
+    Profile2g35gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.71gb")]
+    Profile3g71gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.141gb")]
+    Profile7g141gb,
+}
+
+impl TryFrom<&str> for MIGH200Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidH200Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGH200Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+impl Default for MIGH200Profile {
+    fn default() -> Self {
+        MIGH200Profile {
+            inner: "7g.141gb".to_string(),
+        }
+    }
+}
+
+impl MIGH200Profile {
+    pub fn get_profile(&self) -> String {
+        use std::collections::HashMap;
+
+        let instance_counts = HashMap::from([
+            (ValidH200Policy::Profile1g18gb, 7),
+            (ValidH200Policy::Profile1g35gb, 4),
+            (ValidH200Policy::Profile2g35gb, 3),
+            (ValidH200Policy::Profile3g71gb, 2),
+            (ValidH200Policy::Profile7g141gb, 1),
+        ]);
+
+        let policy: ValidH200Policy =
+            serde_plain::from_str::<ValidH200Policy>(self.inner.as_str()).unwrap();
+
+        let count = instance_counts.get(&policy).unwrap();
+
+        std::iter::repeat(self.inner.clone())
+            .take(*count)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
+string_impls_for!(MIGH200Profile, "MIGH200Profile");
+
+#[cfg(test)]
+mod test_valid_h200_profile {
+    use super::MIGH200Profile;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_h200_profile() {
+        for ok in &[
+            "1g.18gb", "1g.35gb", "2g.35gb", "3g.71gb", "7g.141gb", "1", "2", "3", "4", "7",
+        ] {
+            assert!(MIGH200Profile::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_h200_profile() {
+        assert!(MIGH200Profile::try_from("invalid").is_err());
+        assert!(MIGH200Profile::try_from("1000").is_err());
+        assert!(MIGH200Profile::try_from("1g.7gb").is_err());
+    }
+
+    #[test]
+    fn print_h200_profile() {
+        assert!(
+            MIGH200Profile::try_from("1g.18gb").unwrap().get_profile()
+                == "1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb"
+        );
+        assert!(
+            MIGH200Profile::try_from("1g.35gb").unwrap().get_profile()
+                == "1g.35gb,1g.35gb,1g.35gb,1g.35gb"
+        );
+        assert!(
+            MIGH200Profile::try_from("2g.35gb").unwrap().get_profile() == "2g.35gb,2g.35gb,2g.35gb"
+        );
+        assert!(MIGH200Profile::try_from("3g.71gb").unwrap().get_profile() == "3g.71gb,3g.71gb");
+        assert!(MIGH200Profile::try_from("7g.141gb").unwrap().get_profile() == "7g.141gb");
+    }
+}
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
 /// NvidiaRuntimeSettings contains the container runtime settings for Nvidia gpu.
 #[model(impl_default = true)]
 pub struct NvidiaDevicePluginSettings {
@@ -1458,7 +1782,9 @@ pub struct NvidiaDevicePluginSettings {
     device_id_strategy: NvidiaDeviceIdStrategy,
     device_list_strategy: NvidiaDeviceListStrategy,
     device_sharing_strategy: NvidiaDeviceSharingStrategy,
+    device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
     time_slicing: NvidiaTimeSlicingSettings,
+    mig: NvidiaMIGSettings,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -1489,6 +1815,21 @@ pub struct NvidiaTimeSlicingSettings {
     fail_requests_greater_than_one: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NvidiaDevicePartitioningStrategy {
+    #[default]
+    None,
+    MIG,
+}
+
+#[model(impl_default = true)]
+pub struct NvidiaMIGSettings {
+    profile_a100: MIGA100Profile,
+    profile_h100: MIGH100Profile,
+    profile_h200: MIGH200Profile,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1505,7 +1846,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: None,
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
         let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
@@ -1524,7 +1867,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
 
