@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 // Just need serde's Error in scope to get its trait methods
+use crate::Identifier;
 use bottlerocket_model_derive::model;
 use serde::de::Error as _;
 use serde_json::Value;
@@ -1451,6 +1452,162 @@ mod test_hostname_override_source {
 
 // =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGProfile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidMIGPolicy {
+    // Based on number of slices of the GPU
+    #[serde(alias = "1")]
+    Profile1Slice,
+    #[serde(alias = "2")]
+    Profile2Slice,
+    #[serde(alias = "3")]
+    Profile3Slice,
+    #[serde(alias = "4")]
+    Profile4Slice,
+    #[serde(alias = "7")]
+    Profile7Slice,
+    // Profiles for A100_40GB GPU
+    #[serde(alias = "1g.5gb")]
+    Profile1g5gb,
+    #[serde(alias = "2g.10gb")]
+    Profile2g10gb,
+    #[serde(alias = "3g.20gb")]
+    Profile3g20gb,
+    #[serde(alias = "7g.40gb")]
+    Profile7g40gb,
+    // Profiles for A100_80GB and H100_80GB GPU
+    #[serde(alias = "1g.10gb")]
+    Profile1g10gb,
+    #[serde(alias = "2g.20gb")]
+    Profile2g20gb,
+    #[serde(alias = "3g.40gb")]
+    Profile3g40gb,
+    #[serde(alias = "7g.80gb")]
+    Profile7g80gb,
+    // Prof for H100_80GB GPU
+    #[serde(alias = "1g.20gb")]
+    Profile1g20gb,
+    // Profiles for H200_141GB GPU
+    #[serde(alias = "1g.18gb")]
+    Profile1g18gb,
+    #[serde(alias = "1g.35gb")]
+    Profile1g35gb,
+    #[serde(alias = "2g.35gb")]
+    Profile2g35gb,
+    #[serde(alias = "3g.71gb")]
+    Profile3g71gb,
+    #[serde(alias = "7g.141gb")]
+    Profile7g141gb,
+}
+
+impl TryFrom<&str> for MIGProfile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidMIGPolicy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGProfile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+impl Default for MIGProfile {
+    fn default() -> Self {
+        MIGProfile {
+            inner: "1".to_string(),
+        }
+    }
+}
+
+impl MIGProfile {
+    pub fn get_profile(&self) -> String {
+        use std::collections::HashMap;
+
+        let instance_counts = HashMap::from([
+            (ValidMIGPolicy::Profile1Slice, 1),
+            (ValidMIGPolicy::Profile2Slice, 2),
+            (ValidMIGPolicy::Profile3Slice, 3),
+            (ValidMIGPolicy::Profile4Slice, 4),
+            (ValidMIGPolicy::Profile7Slice, 7),
+            (ValidMIGPolicy::Profile1g5gb, 7),
+            (ValidMIGPolicy::Profile2g10gb, 3),
+            (ValidMIGPolicy::Profile3g20gb, 2),
+            (ValidMIGPolicy::Profile7g40gb, 1),
+            (ValidMIGPolicy::Profile1g10gb, 7),
+            (ValidMIGPolicy::Profile1g20gb, 4),
+            (ValidMIGPolicy::Profile2g20gb, 3),
+            (ValidMIGPolicy::Profile3g40gb, 2),
+            (ValidMIGPolicy::Profile7g80gb, 1),
+            (ValidMIGPolicy::Profile1g18gb, 7),
+            (ValidMIGPolicy::Profile1g35gb, 4),
+            (ValidMIGPolicy::Profile2g35gb, 3),
+            (ValidMIGPolicy::Profile3g71gb, 2),
+            (ValidMIGPolicy::Profile7g141gb, 1),
+        ]);
+
+        let policy: ValidMIGPolicy =
+            serde_plain::from_str::<ValidMIGPolicy>(self.inner.as_str()).unwrap();
+
+        let count = instance_counts.get(&policy).unwrap();
+
+        std::iter::repeat(self.inner.clone())
+            .take(*count)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+}
+
+string_impls_for!(MIGProfile, "MIGProfile");
+
+#[cfg(test)]
+mod test_valid_mig_profile {
+    use super::MIGProfile;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_mig_profile() {
+        for ok in &[
+            "1g.5gb", "2g.10gb", "3g.20gb", "7g.40gb", "1g.10gb", "1g.20gb", "2g.20gb", "3g.40gb",
+            "7g.80gb", "1g.18gb", "1g.35gb", "2g.35gb", "3g.71gb", "7g.141gb", "1", "2", "3", "4",
+            "7",
+        ] {
+            assert!(MIGProfile::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_mig_profile() {
+        assert!(MIGProfile::try_from("invalid").is_err());
+        assert!(MIGProfile::try_from("1000").is_err());
+        assert!(MIGProfile::try_from("1g.7gb").is_err());
+    }
+
+    #[test]
+    fn print_mig_profile() {
+        assert!(
+            MIGProfile::try_from("1g.18gb").unwrap().get_profile()
+                == "1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb,1g.18gb"
+        );
+        assert!(
+            MIGProfile::try_from("1g.35gb").unwrap().get_profile()
+                == "1g.35gb,1g.35gb,1g.35gb,1g.35gb"
+        );
+        assert!(
+            MIGProfile::try_from("2g.35gb").unwrap().get_profile() == "2g.35gb,2g.35gb,2g.35gb"
+        );
+        assert!(MIGProfile::try_from("3g.71gb").unwrap().get_profile() == "3g.71gb,3g.71gb");
+        assert!(MIGProfile::try_from("7g.141gb").unwrap().get_profile() == "7g.141gb");
+    }
+}
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
 /// NvidiaRuntimeSettings contains the container runtime settings for Nvidia gpu.
 #[model(impl_default = true)]
 pub struct NvidiaDevicePluginSettings {
@@ -1458,7 +1615,9 @@ pub struct NvidiaDevicePluginSettings {
     device_id_strategy: NvidiaDeviceIdStrategy,
     device_list_strategy: NvidiaDeviceListStrategy,
     device_sharing_strategy: NvidiaDeviceSharingStrategy,
+    device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
     time_slicing: NvidiaTimeSlicingSettings,
+    mig: NvidiaMIGSettings,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -1489,6 +1648,19 @@ pub struct NvidiaTimeSlicingSettings {
     fail_requests_greater_than_one: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NvidiaDevicePartitioningStrategy {
+    #[default]
+    None,
+    MIG,
+}
+
+#[model(impl_default = true)]
+pub struct NvidiaMIGSettings {
+    profile: HashMap<Identifier, MIGProfile>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1505,7 +1677,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: None,
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
         let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
@@ -1524,7 +1698,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
 
