@@ -44,7 +44,8 @@ mod test {
     use super::*;
     use bottlerocket_modeled_types::{
         NvidiaDeviceIdStrategy, NvidiaDeviceListStrategy, NvidiaDeviceSharingStrategy,
-        NvidiaTimeSlicingSettings,
+        NvidiaDevicePartitioningStrategy, NvidiaTimeSlicingSettings, NvidiaMIGSettings,
+        MIGA100Profile, MIGH100Profile, MIGH200Profile,
     };
     use bounded_integer::BoundedI32;
 
@@ -59,7 +60,7 @@ mod test {
 
     #[test]
     fn test_serde_kubelet_device_plugins() {
-        let test_json = r#"{"nvidia":{"pass-device-specs":true,"device-id-strategy":"index","device-list-strategy":"volume-mounts","device-sharing-strategy":"time-slicing","time-slicing":{"replicas":2,"rename-by-default":true,"fail-requests-greater-than-one":true}}}"#;
+        let test_json = r#"{"nvidia":{"pass-device-specs":true,"device-id-strategy":"index","device-list-strategy":"volume-mounts","device-sharing-strategy":"time-slicing","device-partitioning-strategy":"mig","time-slicing":{"replicas":2,"rename-by-default":true,"fail-requests-greater-than-one":true},"mig":{"profile-a100":"1g.5gb","profile-h100":"7g.80gb","profile-h200":"7g.141gb"}}}"#;
 
         let device_plugins: KubeletDevicePluginsV1 = serde_json::from_str(test_json).unwrap();
         assert_eq!(
@@ -70,10 +71,16 @@ mod test {
                     device_id_strategy: Some(NvidiaDeviceIdStrategy::Index),
                     device_list_strategy: Some(NvidiaDeviceListStrategy::VolumeMounts),
                     device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
+                    device_partitioning_strategy: Some(NvidiaDevicePartitioningStrategy::MIG),
                     time_slicing: Some(NvidiaTimeSlicingSettings {
                         replicas: Some(BoundedI32::new(2).unwrap()),
                         rename_by_default: Some(true),
                         fail_requests_greater_than_one: Some(true),
+                    }),
+                    mig: Some(NvidiaMIGSettings {
+                        profile_a100: Some(MIGA100Profile::try_from("1g.5gb").unwrap()),
+                        profile_h100: Some(MIGH100Profile::try_from("7g.80gb").unwrap()),
+                        profile_h200: Some(MIGH200Profile::try_from("7g.141gb").unwrap()),
                     }),
                 }),
             }

@@ -148,6 +148,12 @@ pub mod error {
         #[snafu(display("Invalid ECS duration value '{}'", input))]
         InvalidECSDurationValue { input: String },
 
+        #[snafu(display("Invalid MIG Profile value '{}'", input))]
+        InvalidMIGProfile {
+            input: String,
+            source: serde_plain::Error,
+        },
+
         #[snafu(display("Could not parse '{}' as an integer", input))]
         ParseInt {
             input: String,

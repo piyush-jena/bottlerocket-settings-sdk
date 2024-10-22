@@ -1451,6 +1451,143 @@ mod test_hostname_override_source {
 
 // =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGA100Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidA100Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.5gb")]
+    Profile1g5gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.10gb")]
+    Profile2g10gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.20gb")]
+    Profile3g20gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.40gb")]
+    Profile7g40gb,
+}
+
+impl TryFrom<&str> for MIGA100Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidA100Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGA100Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(MIGA100Profile, "MIGA100Profile");
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGH100Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidH100Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.10gb")]
+    Profile1g10gb,
+    #[serde(alias = "4")]
+    #[serde(alias = "1g.20gb")]
+    Profile1g20gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.20gb")]
+    Profile2g20gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.40gb")]
+    Profile3g40gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.80gb")]
+    Profile7g80gb,
+}
+
+impl TryFrom<&str> for MIGH100Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidH100Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGH100Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(MIGH100Profile, "MIGH100Profile");
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGH200Profile {
+    inner: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ValidH200Policy {
+    #[serde(alias = "7")]
+    #[serde(alias = "1g.18gb")]
+    Profile1g10gb,
+    #[serde(alias = "4")]
+    #[serde(alias = "1g.35gb")]
+    Profile1g20gb,
+    #[serde(alias = "3")]
+    #[serde(alias = "2g.35gb")]
+    Profile2g20gb,
+    #[serde(alias = "2")]
+    #[serde(alias = "3g.71gb")]
+    Profile3g40gb,
+    #[serde(alias = "1")]
+    #[serde(alias = "7g.141gb")]
+    Profile7g141gb,
+}
+
+impl TryFrom<&str> for MIGH200Profile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        serde_plain::from_str::<ValidH200Policy>(input)
+            .context(error::InvalidMIGProfileSnafu { input })?;
+        Ok(MIGH200Profile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(MIGH200Profile, "MIGH200Profile");
+
+/*
+#[cfg(test)]
+mod test_cpu_manager_policy {
+    use super::CpuManagerPolicy;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn good_cpu_manager_policy() {
+        for ok in &["Static", "static", "None", "none"] {
+            CpuManagerPolicy::try_from(*ok).unwrap();
+        }
+    }
+
+    #[test]
+    fn bad_cpu_manager_policy() {
+        for err in &["", "bad", "100", &"a".repeat(64)] {
+            CpuManagerPolicy::try_from(*err).unwrap_err();
+        }
+    }
+}*/
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
 /// NvidiaRuntimeSettings contains the container runtime settings for Nvidia gpu.
 #[model(impl_default = true)]
 pub struct NvidiaDevicePluginSettings {
@@ -1458,7 +1595,9 @@ pub struct NvidiaDevicePluginSettings {
     device_id_strategy: NvidiaDeviceIdStrategy,
     device_list_strategy: NvidiaDeviceListStrategy,
     device_sharing_strategy: NvidiaDeviceSharingStrategy,
+    device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
     time_slicing: NvidiaTimeSlicingSettings,
+    mig: NvidiaMIGSettings,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -1489,6 +1628,20 @@ pub struct NvidiaTimeSlicingSettings {
     fail_requests_greater_than_one: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NvidiaDevicePartitioningStrategy {
+    None,
+    MIG,
+}
+
+#[model(impl_default = true)]
+pub struct NvidiaMIGSettings {
+    profile_a100: MIGA100Profile,
+    profile_h100: MIGH100Profile,
+    profile_h200: MIGH200Profile,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1505,7 +1658,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: None,
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
         let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
@@ -1524,7 +1679,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
-                time_slicing: None
+                device_partitioning_strategy: None,
+                time_slicing: None,
+                mig: None,
             }
         );
 
