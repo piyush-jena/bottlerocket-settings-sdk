@@ -75,6 +75,8 @@ mod test {
                         rename_by_default: Some(true),
                         fail_requests_greater_than_one: Some(true),
                     }),
+                    device_partitioning_strategy: None,
+                    mig: None,
                 }),
             }
         );

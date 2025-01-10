@@ -1469,6 +1469,8 @@ pub struct NvidiaDevicePluginSettings {
     device_list_strategy: NvidiaDeviceListStrategy,
     device_sharing_strategy: NvidiaDeviceSharingStrategy,
     time_slicing: NvidiaTimeSlicingSettings,
+    device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
+    mig: NvidiaMIGSettings,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -1515,7 +1517,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: None,
-                time_slicing: None
+                time_slicing: None,
+                device_partitioning_strategy: None,
+                mig: None
             }
         );
         let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
@@ -1534,7 +1538,9 @@ mod tests {
                 device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
                 device_list_strategy: Some(NvidiaDeviceListStrategy::Envvar),
                 device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
-                time_slicing: None
+                time_slicing: None,
+                device_partitioning_strategy: None,
+                mig: None
             }
         );
 
@@ -1547,5 +1553,122 @@ mod tests {
         let test_json = r#"{"pass-device-specs":false,"device-id-strategy":"uuid","device-list-strategy":"envvar","device-sharing-strategy":"time-slicing","time-slicing":{"replicas":0}}"#;
         let result: Result<NvidiaDevicePluginSettings, _> = serde_json::from_str(test_json);
         assert!(result.is_err(), "The JSON should not be parsed successfully as it contains an invalid value for 'replicas'.");
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NvidiaDevicePartitioningStrategy {
+    #[default]
+    None,
+    MIG,
+}
+
+#[model(impl_default = true)]
+pub struct NvidiaMIGSettings {
+    profile: HashMap<NvidiaGPUModel, MIGProfile>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct NvidiaGPUModel {
+    inner: String,
+}
+
+lazy_static! {
+    pub(crate) static ref NVIDIAGPU_NAME: Regex = Regex::new(r"^([a-z])(\d+)\.(\d+)gb$").unwrap();
+}
+
+impl TryFrom<&str> for NvidiaGPUModel {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        ensure!(
+            NVIDIAGPU_NAME.is_match(input),
+            error::PatternSnafu {
+                thing: "NVIDIA GPU Model",
+                pattern: NVIDIAGPU_NAME.clone(),
+                input
+            }
+        );
+
+        Ok(NvidiaGPUModel {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(NvidiaGPUModel, "NvidiaGPUModel");
+
+#[cfg(test)]
+mod test_valid_gpu_model {
+    use super::NvidiaGPUModel;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_gpu_model() {
+        for ok in &["a100.40gb", "a100.80gb", "h100.80gb", "h100.141gb"] {
+            assert!(NvidiaGPUModel::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_gpu_model() {
+        assert!(NvidiaGPUModel::try_from("invalid").is_err());
+        assert!(NvidiaGPUModel::try_from("1000").is_err());
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct MIGProfile {
+    inner: String,
+}
+
+lazy_static! {
+    pub(crate) static ref MIGPROFILE_NAME: Regex = Regex::new(r"^[0-9]g\.\d+gb$").unwrap();
+}
+
+impl TryFrom<&str> for MIGProfile {
+    type Error = error::Error;
+
+    fn try_from(input: &str) -> Result<Self, Self::Error> {
+        let slice_format = matches!(input, "1" | "2" | "3" | "4" | "7");
+
+        ensure!(
+            slice_format | MIGPROFILE_NAME.is_match(input),
+            error::PatternSnafu {
+                thing: "MIG Profile",
+                pattern: MIGPROFILE_NAME.clone(),
+                input
+            }
+        );
+
+        Ok(MIGProfile {
+            inner: input.to_string(),
+        })
+    }
+}
+
+string_impls_for!(MIGProfile, "MIGProfile");
+
+#[cfg(test)]
+mod test_valid_mig_profile {
+    use super::MIGProfile;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn valid_mig_profile() {
+        for ok in &[
+            "1g.5gb", "2g.10gb", "3g.20gb", "7g.40gb", "1g.10gb", "1g.20gb", "2g.20gb", "3g.40gb",
+            "7g.80gb", "1g.18gb", "1g.35gb", "2g.35gb", "3g.71gb", "7g.141gb", "1", "2", "3", "4",
+            "7",
+        ] {
+            assert!(MIGProfile::try_from(*ok).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_mig_profile() {
+        assert!(MIGProfile::try_from("invalid").is_err());
+        assert!(MIGProfile::try_from("1000").is_err());
     }
 }
