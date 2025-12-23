@@ -1559,6 +1559,7 @@ pub struct NvidiaDevicePluginSettings {
     device_list_strategy: NvidiaDeviceListStrategy,
     device_sharing_strategy: NvidiaDeviceSharingStrategy,
     time_slicing: NvidiaTimeSlicingSettings,
+    mps: NvidiaMpsSettings,
     device_partitioning_strategy: NvidiaDevicePartitioningStrategy,
     mig: NvidiaMigSettings,
 }
@@ -1612,6 +1613,7 @@ impl IntoIterator for NvidiaDeviceListStrategy {
 pub enum NvidiaDeviceSharingStrategy {
     None,
     TimeSlicing,
+    Mps,
 }
 
 #[model(impl_default = true)]
@@ -1619,6 +1621,11 @@ pub struct NvidiaTimeSlicingSettings {
     replicas: BoundedI32<TIME_SLICING_REPLICAS_MIN, TIME_SLICING_REPLICAS_MAX>,
     rename_by_default: bool,
     fail_requests_greater_than_one: bool,
+}
+#[model(impl_default = true)]
+pub struct NvidiaMpsSettings {
+    rename_by_default: bool,
+    replicas: BoundedI32<TIME_SLICING_REPLICAS_MIN, TIME_SLICING_REPLICAS_MAX>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -1762,6 +1769,7 @@ mod test_nvidia_device_plugins {
                 ),),
                 device_sharing_strategy: None,
                 time_slicing: None,
+                mps: None,
                 device_partitioning_strategy: None,
                 mig: None
             }
@@ -1785,6 +1793,7 @@ mod test_nvidia_device_plugins {
                 ),),
                 device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
                 time_slicing: None,
+                mps: None,
                 device_partitioning_strategy: None,
                 mig: None
             }
@@ -1795,6 +1804,52 @@ mod test_nvidia_device_plugins {
     }
 
     #[test]
+    fn test_serde_nvidia_device_plugins_with_mps() {
+        let test_json = r#"{"pass-device-specs":false,"device-id-strategy":"uuid","device-list-strategy":"envvar","device-sharing-strategy":"mps"}"#;
+        let nvidia_device_plugins: NvidiaDevicePluginSettings =
+            serde_json::from_str(test_json).unwrap();
+        assert_eq!(
+            nvidia_device_plugins,
+            NvidiaDevicePluginSettings {
+                pass_device_specs: Some(false),
+                device_id_strategy: Some(NvidiaDeviceIdStrategy::Uuid),
+                device_list_strategy: Some(NvidiaDeviceListStrategy::Scalar(
+                    NvidiaDeviceListStrategyValues::Envvar
+                ),),
+                device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::Mps),
+                time_slicing: None,
+                mps: None,
+                device_partitioning_strategy: None,
+                mig: None
+            }
+        );
+        let results = serde_json::to_string(&nvidia_device_plugins).unwrap();
+        assert_eq!(results, test_json);
+    }
+
+    #[test]
+    fn test_serde_nvidia_device_plugins_with_mps_settings() {
+        let test_json = r#"{"pass-device-specs":true,"device-sharing-strategy":"mps","mps":{"replicas":4,"rename-by-default":true}}"#;
+        let nvidia_device_plugins: NvidiaDevicePluginSettings =
+            serde_json::from_str(test_json).unwrap();
+        assert_eq!(
+            nvidia_device_plugins.device_sharing_strategy,
+            Some(NvidiaDeviceSharingStrategy::Mps)
+        );
+        assert!(nvidia_device_plugins.mps.is_some());
+        let mps = nvidia_device_plugins.mps.unwrap();
+        assert_eq!(mps.replicas, Some(BoundedI32::new(4).unwrap()));
+    }
+
+    #[test]
+    fn test_invalid_mps_replicas() {
+        let test_json = r#"{"device-sharing-strategy":"mps","mps":{"replicas":1}}"#;
+        let result: Result<NvidiaDevicePluginSettings, _> = serde_json::from_str(test_json);
+        assert!(result.is_err(), "MPS replicas must be >= 2");
+    }
+
+    #[test]
+
     fn test_invalid_time_slicing_replicas() {
         let test_json = r#"{"pass-device-specs":false,"device-id-strategy":"uuid","device-list-strategy":"envvar","device-sharing-strategy":"time-slicing","time-slicing":{"replicas":0}}"#;
         let result: Result<NvidiaDevicePluginSettings, _> = serde_json::from_str(test_json);
@@ -1816,6 +1871,7 @@ mod test_nvidia_device_plugins {
                 ),),
                 device_sharing_strategy: None,
                 time_slicing: None,
+                mps: None,
                 device_partitioning_strategy: Some(NvidiaDevicePartitioningStrategy::MIG),
                 mig: None
             }
@@ -1840,6 +1896,7 @@ mod test_nvidia_device_plugins {
                 ),),
                 device_sharing_strategy: None,
                 time_slicing: None,
+                mps: None,
                 device_partitioning_strategy: Some(NvidiaDevicePartitioningStrategy::MIG),
                 mig: Some(NvidiaMigSettings {
                     profile: Some(HashMap::from([(

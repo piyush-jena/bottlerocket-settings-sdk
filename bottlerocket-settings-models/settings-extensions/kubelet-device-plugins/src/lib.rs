@@ -45,7 +45,8 @@ mod test {
     use bottlerocket_modeled_types::{
         MigProfile, NvidiaDeviceIdStrategy, NvidiaDeviceListStrategy,
         NvidiaDeviceListStrategyValues, NvidiaDevicePartitioningStrategy,
-        NvidiaDeviceSharingStrategy, NvidiaGpuModel, NvidiaMigSettings, NvidiaTimeSlicingSettings,
+        NvidiaDeviceSharingStrategy, NvidiaGpuModel, NvidiaMigSettings, NvidiaMpsSettings,
+        NvidiaTimeSlicingSettings,
     };
     use bounded_integer::BoundedI32;
     use std::collections::HashMap;
@@ -75,6 +76,7 @@ mod test {
                         NvidiaDeviceListStrategyValues::Envvar,
                     ])),
                     device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
+                    mps: None,
                     time_slicing: Some(NvidiaTimeSlicingSettings {
                         replicas: Some(BoundedI32::new(2).unwrap()),
                         rename_by_default: Some(true),
@@ -110,6 +112,7 @@ mod test {
                         NvidiaDeviceListStrategyValues::VolumeMounts
                     )),
                     device_sharing_strategy: Some(NvidiaDeviceSharingStrategy::TimeSlicing),
+                    mps: None,
                     time_slicing: Some(NvidiaTimeSlicingSettings {
                         replicas: Some(BoundedI32::new(2).unwrap()),
                         rename_by_default: Some(true),
