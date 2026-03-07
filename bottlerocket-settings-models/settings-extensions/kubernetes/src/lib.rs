@@ -8,8 +8,9 @@ use bottlerocket_modeled_types::{
     KubernetesIdsPerPodValue, KubernetesLabelKey, KubernetesLabelValue,
     KubernetesMemoryManagerPolicy, KubernetesMemoryReservation, KubernetesMemorySwapBehavior,
     KubernetesQuantityValue, KubernetesReservedResourceKey, KubernetesTaintValue,
-    KubernetesThresholdValue, NonNegativeInteger, SingleLineString, TopologyManagerPolicy,
-    TopologyManagerScope, Url, ValidBase64, ValidLinuxHostname,
+    KubernetesThresholdValue, KubernetesTopologyManagerPolicyOptions, NonNegativeInteger,
+    SingleLineString, TopologyManagerPolicy, TopologyManagerScope, Url, ValidBase64,
+    ValidLinuxHostname,
 };
 use bottlerocket_settings_sdk::{GenerateResult, SettingsModel};
 
@@ -71,6 +72,7 @@ pub struct KubernetesSettingsV1 {
     cpu_manager_policy_options: Vec<KubernetesCPUManagerPolicyOption>,
     topology_manager_scope: TopologyManagerScope,
     topology_manager_policy: TopologyManagerPolicy,
+    topology_manager_policy_options: KubernetesTopologyManagerPolicyOptions,
     pod_pids_limit: i64,
     image_gc_high_threshold_percent: IntegerPercent,
     image_gc_low_threshold_percent: IntegerPercent,
@@ -178,6 +180,7 @@ mod test {
                 cpu_manager_policy_options: None,
                 topology_manager_scope: None,
                 topology_manager_policy: None,
+                topology_manager_policy_options: None,
                 pod_pids_limit: None,
                 image_gc_high_threshold_percent: None,
                 image_gc_low_threshold_percent: None,

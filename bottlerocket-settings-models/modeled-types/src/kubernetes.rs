@@ -1555,6 +1555,66 @@ mod test_kubernetes_ids_per_pod_value {
 
 // =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 
+/// KubernetesMaxAllowableNumaNodesValue represents a valid value for the topology manager
+/// `max-allowable-numa-nodes` policy option. Must be >= 8 (the default). Upstream validation:
+/// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/cm/topologymanager/policy_options.go
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "i32", into = "i32")]
+pub struct KubernetesMaxAllowableNumaNodesValue {
+    inner: i32,
+}
+
+impl TryFrom<i32> for KubernetesMaxAllowableNumaNodesValue {
+    type Error = error::Error;
+
+    fn try_from(input: i32) -> Result<Self, Self::Error> {
+        ensure!(
+            input >= 8,
+            error::InvalidKubernetesMaxAllowableNumaNodesValueSnafu { input }
+        );
+        Ok(KubernetesMaxAllowableNumaNodesValue { inner: input })
+    }
+}
+
+impl From<KubernetesMaxAllowableNumaNodesValue> for i32 {
+    fn from(val: KubernetesMaxAllowableNumaNodesValue) -> Self {
+        val.inner
+    }
+}
+
+#[cfg(test)]
+mod test_kubernetes_max_allowable_numa_nodes_value {
+    use super::KubernetesMaxAllowableNumaNodesValue;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn good_values() {
+        for ok in &[8, 9, 16, 64] {
+            KubernetesMaxAllowableNumaNodesValue::try_from(*ok).unwrap();
+        }
+    }
+
+    #[test]
+    fn bad_values() {
+        for err in &[0, 1, 7, -1] {
+            KubernetesMaxAllowableNumaNodesValue::try_from(*err).unwrap_err();
+        }
+    }
+}
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
+/// KubernetesTopologyManagerPolicyOptions represents the topology manager policy options
+/// for the kubelet. These are rendered as `topologyManagerPolicyOptions` in KubeletConfiguration.
+/// Upstream source: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/cm/topologymanager/policy_options.go
+#[model(impl_default = true)]
+pub struct KubernetesTopologyManagerPolicyOptions {
+    prefer_closest_numa_nodes: bool,
+    max_allowable_numa_nodes: KubernetesMaxAllowableNumaNodesValue,
+}
+
+// =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+
 /// NvidiaDevicePluginSettings contains the device sharing and partitioning related settings for Nvidia gpu.
 #[model(impl_default = true)]
 pub struct NvidiaDevicePluginSettings {

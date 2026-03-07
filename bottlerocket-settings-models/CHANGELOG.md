@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - See [unreleased changes here]
 
-[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.21.0...HEAD
+[unreleased changes here]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.22.0...HEAD
+
+## [0.22.0] - 2026-03-07
+
+## Model Changes
+
+### Added
+
+- Added `topology-manager-policy-options` kubernetes setting with `prefer-closest-numa-nodes` (bool) and `max-allowable-numa-nodes` (constrained integer >= 8) sub-fields
+- Added `KubernetesMaxAllowableNumaNodesValue` constrained integer type
+- Added `KubernetesTopologyManagerPolicyOptions` struct
+
+[0.22.0]: https://github.com/bottlerocket-os/bottlerocket-settings-sdk/compare/bottlerocket-settings-models-v0.21.0...bottlerocket-settings-models-v0.22.0
 
 ## [0.21.0] - 2026-02-24
 

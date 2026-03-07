@@ -165,6 +165,12 @@ pub mod error {
 
         #[snafu(display("Invalid Kubernetes IDs per pod value '{}'", input))]
         InvalidKubernetesIdsPerPodValue { input: i64 },
+
+        #[snafu(display(
+            "Invalid Kubernetes max-allowable-numa-nodes value '{}': must be >= 8",
+            input
+        ))]
+        InvalidKubernetesMaxAllowableNumaNodesValue { input: i32 },
     }
 
     /// Creates a `ValidationError` with a consistent message for strings with regex validations
