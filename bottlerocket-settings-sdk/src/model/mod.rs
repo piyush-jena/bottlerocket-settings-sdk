@@ -194,7 +194,7 @@ mod error {
         ))]
         DeserializeInput {
             input_type: &'static str,
-            input: serde_json::Value,
+            input: Box<serde_json::Value>,
             version: &'static str,
             source: serde_json::Error,
         },
