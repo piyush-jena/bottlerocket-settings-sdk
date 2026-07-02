@@ -24,6 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_plain.workspace = true
 snafu.workspace = true
+test-case.workspace = true
 url.workspace = true
 x509-parser.workspace = true
 

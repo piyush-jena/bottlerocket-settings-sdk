@@ -57,6 +57,16 @@ pub mod error {
         #[snafu(display("Invalid version string '{}'", input))]
         InvalidVersion { input: String },
 
+        #[snafu(display("Invalid hugepages size '{}': '{}'", input, msg))]
+        InvalidHugepageSize { input: String, msg: String },
+
+        #[snafu(display(
+            "Invalid hugepages allocation '{}'. Must be either a non-negative \
+            integer or a comma separated list of \"<node>:<pages>\" pairs (e.g. \"0:128,1:256\")",
+            input
+        ))]
+        InvalidHugepageAllocation { input: String },
+
         #[snafu(display("{} must match '{}', given: {}", thing, pattern, input))]
         Pattern {
             thing: String,
@@ -200,11 +210,13 @@ macro_rules! require {
 
 // Must be after macro definition
 mod ecs;
+mod hugepages;
 mod kubernetes;
 mod oci_defaults;
 mod shared;
 
 pub use ecs::*;
+pub use hugepages::*;
 pub use kubernetes::*;
 pub use oci_defaults::*;
 pub use shared::*;
