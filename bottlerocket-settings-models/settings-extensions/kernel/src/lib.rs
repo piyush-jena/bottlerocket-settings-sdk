@@ -50,6 +50,41 @@ impl SettingsModel for KernelSettingsV1 {
     }
 }
 
+/// AttestedKernelSettingsV1 is a restricted kernel settings model that only exposes
+/// the `lockdown` setting. Unlike KernelSettingsV1, it intentionally omits the
+/// the variants using it won't allow users to configure those settings.
+#[model(impl_default = true)]
+struct AttestedKernelSettingsV1 {
+    lockdown: Lockdown,
+}
+
+impl SettingsModel for AttestedKernelSettingsV1 {
+    type PartialKind = Self;
+    type ErrorKind = Infallible;
+
+    fn get_version() -> &'static str {
+        "v2"
+    }
+
+    fn set(_current_value: Option<Self>, _target: Self) -> Result<()> {
+        // allow anything that parses as AttestedKernelSettings
+        Ok(())
+    }
+
+    fn generate(
+        existing_partial: Option<Self::PartialKind>,
+        _dependent_settings: Option<serde_json::Value>,
+    ) -> Result<GenerateResult<Self::PartialKind, Self>> {
+        Ok(GenerateResult::Complete(
+            existing_partial.unwrap_or_default(),
+        ))
+    }
+
+    fn validate(_value: Self, _validated_settings: Option<serde_json::Value>) -> Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -163,5 +198,40 @@ mod test {
             hugepages_out["transparent"]["defrag"],
             serde_json::json!("defer+madvise")
         );
+    }
+
+    #[test]
+    fn test_generate_attested_kernel() {
+        let generated = AttestedKernelSettingsV1::generate(None, None).unwrap();
+
+        assert_eq!(
+            generated,
+            GenerateResult::Complete(AttestedKernelSettingsV1 { lockdown: None })
+        )
+    }
+
+    #[test]
+    fn test_serde_attested_kernel() {
+        let test_json = r#"{"lockdown": "integrity"}"#;
+        let kernel: AttestedKernelSettingsV1 = serde_json::from_str(test_json).unwrap();
+
+        assert_eq!(
+            kernel,
+            AttestedKernelSettingsV1 {
+                lockdown: Some(Lockdown::try_from("integrity").unwrap()),
+            }
+        );
+    }
+
+    #[test]
+    fn test_attested_kernel_rejects_removed_fields() {
+        // AttestedKernelSettingsV1 intentionally only exposes `lockdown`; attempting to set
+        // `modules` or `sysctl` must fail to deserialize.
+        let with_sysctl = r#"{"lockdown": "integrity", "sysctl": {"key": "value"}}"#;
+        assert!(serde_json::from_str::<AttestedKernelSettingsV1>(with_sysctl).is_err());
+
+        let with_modules =
+            r#"{"lockdown": "integrity", "modules": {"foo": {"allowed": true, "autoload": true}}}"#;
+        assert!(serde_json::from_str::<AttestedKernelSettingsV1>(with_modules).is_err());
     }
 }
